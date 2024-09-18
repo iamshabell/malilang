@@ -13,6 +13,6 @@ deji wey_kujirtaa = haa;
 haddii wey_kujirtaa {
     daabac "Tiradu waa sax";
 } kale {
-    daabac "Tiradu ma aha khalad";
+    daabac "Tiradu ma aha sax";
 }
 ```
