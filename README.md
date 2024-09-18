@@ -5,7 +5,7 @@
 ### Example Program
 ```javascript
 hawl soo_dhoweey(magac) {
-    daabac "Soo dhowey " + name;
+    daabac "Soo dhowey " + magac;
 }
 
 deji wey_kujirtaa = haa;
