@@ -40,11 +40,11 @@ fn run_file(path: &str) -> Result<()> {
 }
 
 fn run(buffer: &str) -> Result<()> {
-    //let mut lexer = lexer::Lexer::new(source);
-    //let tokens = lexer.scan_tokens();
-    //for token in tokens {
-    //    println!("{:?}", token);
-    //}
+    let mut lexer = lexer::Lexer::new(buffer);
+    let tokens = lexer.lex();
+    for token in tokens {
+        println!("{:?}", token);
+    }
     Ok(())
 }
 
