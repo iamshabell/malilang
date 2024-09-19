@@ -146,7 +146,7 @@ impl Lexer {
             }
         }
 
-        let value = self.input[self.start..self.current].parse::<f64>()?;
+        let value = self.input[self.start..self.current].parse::<f32>()?;
         self.add_token_literal(TokenType::Number, LiteralValue::FloatValue(value));
 
         Ok(())
@@ -233,7 +233,7 @@ impl Lexer {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
     IntValue(i64),
-    FloatValue(f64),
+    FloatValue(f32),
     StringValue(String),
     Identifier(String),
 }
@@ -272,7 +272,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     LeftParen,
     RightParen,

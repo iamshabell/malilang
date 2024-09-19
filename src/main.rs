@@ -4,7 +4,9 @@ use std::{
 };
 
 use anyhow::{Error, Result};
+mod expr;
 mod lexer;
+mod parser;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
