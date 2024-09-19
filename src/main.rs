@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Error, Result};
+use parser::Parser;
 mod expr;
 mod lexer;
 mod parser;
@@ -43,10 +44,14 @@ fn run_file(path: &str) -> Result<()> {
 
 fn run(buffer: &str) -> Result<()> {
     let mut lexer = lexer::Lexer::new(buffer);
-    let tokens = lexer.lex();
-    for token in tokens {
-        println!("{:?}", token);
-    }
+    let tokens = lexer.lex()?;
+
+    let mut ast = Parser::new(tokens);
+    let expr = ast.parse()?;
+
+    let result = expr.evaluate()?;
+    println!("{:?}", result);
+
     Ok(())
 }
 
