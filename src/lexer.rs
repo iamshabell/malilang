@@ -123,7 +123,7 @@ impl Lexer {
             "super" => TokenType::Super,
             "kan" => TokenType::This,
             "run" => TokenType::True,
-            "deji" => TokenType::Var,
+            "weel" => TokenType::Var,
             "inta" => TokenType::While,
             _ => TokenType::Identifier,
         };
@@ -433,7 +433,7 @@ mod tests {
     #[test]
     fn keyword_tokens() {
         let source =
-            "qeyb markasta haddii kale been hawl waxba ama daabac celi super kan run deji inta";
+            "qeyb markasta haddii kale been hawl waxba ama daabac celi super kan run weel inta";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.lex().unwrap();
 
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn handle_keywords() {
-        let source = "deji foo = 123;\n qeyb bar = \"hello\";\ninta run { daabac bar; }";
+        let source = "weel foo = 123;\n qeyb bar = \"hello\";\ninta run { daabac bar; }";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.lex().unwrap();
 
