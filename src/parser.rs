@@ -33,7 +33,6 @@ impl Parser {
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expr> {
         let mut left = self.parse_prefix()?;
-        println!("precedence {:?}", precedence);
 
         if precedence < self.get_precedence() {
             let token = self.advance();
@@ -75,8 +74,7 @@ impl Parser {
 
     fn parse_infix(&mut self, left: Expr, token: Token) -> Result<Expr> {
         let precedence = self.get_precedence();
-        println!("precedence {:?} token: {:?}", precedence, left.to_string());
-        let right = self.parse_expression(Precedence::None)?;
+        let right = self.parse_expression(precedence)?;
 
         Ok(Expr::Binary {
             left: Box::new(left),
@@ -87,7 +85,6 @@ impl Parser {
 
     fn get_precedence(&self) -> Precedence {
         let token = self.peek();
-        println!("Token: {:?}", token);
         match token.token_type {
             TokenType::EqualEqual => Precedence::Equality,
             TokenType::Less
