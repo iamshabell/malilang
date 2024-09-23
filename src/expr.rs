@@ -124,99 +124,116 @@ impl Expr {
             }
         }
     }
+
     pub fn evaluate(&self) -> Result<ExpLiteralValue> {
         match self {
-            Expr::Literal { value } => Ok((*value).clone()),
+            Expr::Literal { value } => Ok(value.clone()),
+
             Expr::Grouping { expression } => expression.evaluate(),
+
             Expr::Unary { operator, right } => {
-                let right = right.evaluate()?;
-                match (&right, operator.token_type) {
-                    (Number(x), TokenType::Minus) => Ok(Number(-x)),
-                    (_, TokenType::Minus) => {
-                        anyhow::bail!("Cannot negate {:?}", right);
+                let right_value = right.evaluate()?;
+                match (&right_value, operator.token_type) {
+                    (ExpLiteralValue::Number(x), TokenType::Minus) => {
+                        Ok(ExpLiteralValue::Number(-x))
                     }
-                    (any, TokenType::Bang) => Ok(any.is_falsy()),
+                    (_, TokenType::Minus) => {
+                        anyhow::bail!("Cannot negate {:?}", right_value);
+                    }
+                    (any, TokenType::Bang) => {
+                        Ok(ExpLiteralValue::from_bool(any.is_falsy() == True))
+                    }
                     (_, token_type) => {
                         anyhow::bail!(
                             "Cannot evaluate unary expression with operator {:?}",
-                            token_type
-                        )
+                            token_type,
+                        );
                     }
                 }
             }
+
             Expr::Binary {
                 left,
                 operator,
                 right,
             } => {
-                let left = &left.evaluate()?;
-                let right = &right.evaluate()?;
+                let left_value = left.evaluate()?;
+                let right_value = right.evaluate()?;
+
                 match operator.token_type {
-                    TokenType::Plus => match (left, right) {
+                    TokenType::Plus => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::Number(l + r))
                         }
                         (ExpLiteralValue::StringValue(l), ExpLiteralValue::StringValue(r)) => {
                             Ok(ExpLiteralValue::StringValue(format!("{}{}", l, r)))
                         }
-                        _ => anyhow::bail!("Cannot add {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot add {:?} and {:?}", l, r),
                     },
-                    TokenType::Minus => match (left, right) {
+                    TokenType::Minus => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::Number(l - r))
                         }
-                        _ => anyhow::bail!("Cannot subtract {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot subtract {:?} and {:?}", l, r),
                     },
-                    TokenType::Star => match (left, right) {
+                    TokenType::Star => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::Number(l * r))
                         }
-                        _ => anyhow::bail!("Cannot multiply {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot multiply {:?} and {:?}", l, r),
                     },
-                    TokenType::Slash => match (left, right) {
+                    TokenType::Slash => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
+                            if r == 0.0 {
+                                anyhow::bail!("Cannot divide by zero");
+                            }
                             Ok(ExpLiteralValue::Number(l / r))
                         }
-                        _ => anyhow::bail!("Cannot divide {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot divide {:?} and {:?}", l, r),
                     },
-                    TokenType::Greater => match (left, right) {
+                    TokenType::Greater => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::from_bool(l > r))
                         }
-                        _ => anyhow::bail!("Cannot compare {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot compare {:?} and {:?}", l, r),
                     },
-                    TokenType::GreaterEqual => match (left, right) {
+                    TokenType::GreaterEqual => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::from_bool(l >= r))
                         }
-                        _ => anyhow::bail!("Cannot compare {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot compare {:?} and {:?}", l, r),
                     },
-                    TokenType::Less => match (left, right) {
+                    TokenType::Less => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::from_bool(l < r))
                         }
-                        _ => anyhow::bail!("Cannot compare {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot compare {:?} and {:?}", l, r),
                     },
-                    TokenType::LessEqual => match (left, right) {
+                    TokenType::LessEqual => match (left_value, right_value) {
                         (ExpLiteralValue::Number(l), ExpLiteralValue::Number(r)) => {
                             Ok(ExpLiteralValue::from_bool(l <= r))
                         }
-                        _ => anyhow::bail!("Cannot compare {:?} and {:?}", left, right),
+                        (l, r) => anyhow::bail!("Cannot compare {:?} and {:?}", l, r),
                     },
-                    TokenType::EqualEqual => Ok(ExpLiteralValue::from_bool(left == right)),
-                    TokenType::BangEqual => Ok(ExpLiteralValue::from_bool(left != right)),
-                    _ => anyhow::bail!(
-                        "Cannot evaluate binary expression with operator {:?}",
-                        operator
-                    ),
+                    TokenType::EqualEqual => {
+                        Ok(ExpLiteralValue::from_bool(left_value == right_value))
+                    }
+                    TokenType::BangEqual => {
+                        Ok(ExpLiteralValue::from_bool(left_value != right_value))
+                    }
                     _ => anyhow::bail!(
                         "Cannot evaluate binary expression with operator {:?}",
                         operator
                     ),
                 }
             }
-
-            _ => todo!(),
+            Expr::Variable { name } => match name.lexeme.as_str() {
+                "True" => Ok(ExpLiteralValue::True),
+                "False" => Ok(ExpLiteralValue::False),
+                "Nil" => Ok(ExpLiteralValue::Nil),
+                _ => anyhow::bail!("Cannot evaluate variable {:?}", name.lexeme),
+            },
+            _ => todo!("Implement evaluation for {:?}", self.to_string()),
         }
     }
 }

@@ -86,15 +86,23 @@ impl Parser {
     fn get_precedence(&self) -> Precedence {
         let token = self.peek();
         match token.token_type {
-            TokenType::EqualEqual => Precedence::Equality,
+            TokenType::EqualEqual | TokenType::BangEqual => Precedence::Equality,
             TokenType::Less
             | TokenType::LessEqual
             | TokenType::Greater
             | TokenType::GreaterEqual => Precedence::Comparison,
-            TokenType::Plus | TokenType::Minus => Precedence::Term,
+            TokenType::Plus => Precedence::Term,
             TokenType::Star | TokenType::Slash => Precedence::Factor,
             TokenType::Equal => Precedence::Assignment,
             TokenType::Bang => Precedence::Unary,
+            TokenType::Minus => {
+                if self.peek().token_type == TokenType::Number {
+                    Precedence::Term
+                } else {
+                    Precedence::Unary
+                }
+            }
+
             _ => Precedence::None,
         }
     }
