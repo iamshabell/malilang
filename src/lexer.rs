@@ -351,7 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn comparison_tokens() {
+    fn comparison_tokens_lex() {
         let source = "! != = == < <= > >=";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.lex().unwrap();
