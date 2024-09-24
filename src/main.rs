@@ -4,10 +4,15 @@ use std::{
 };
 
 use anyhow::{Error, Result};
+use environment::Environment;
+use interpreter::Interpreter;
 use parser::Parser;
+mod environment;
 mod expr;
+mod interpreter;
 mod lexer;
 mod parser;
+mod statement;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -37,25 +42,26 @@ fn main() -> Result<()> {
 }
 
 fn run_file(path: &str) -> Result<()> {
+    let mut interpreter = Interpreter::new();
     let source = std::fs::read_to_string(path)?;
-    run(&source)?;
+    run(&mut interpreter, &source)?;
     Ok(())
 }
 
-fn run(buffer: &str) -> Result<()> {
+fn run(interpreter: &mut Interpreter, buffer: &str) -> Result<()> {
     let mut lexer = lexer::Lexer::new(buffer);
     let tokens = lexer.lex()?;
 
     let mut ast = Parser::new(tokens);
-    let expr = ast.parse()?;
+    let statements = ast.parse()?;
 
-    let result = expr.evaluate()?;
-    println!("{:?}", result);
+    interpreter.interpret(statements)?;
 
     Ok(())
 }
 
 fn run_prompt() -> Result<(), String> {
+    let mut interpreter = Interpreter::new();
     loop {
         print!("> ");
         match io::stdout().flush() {
@@ -75,7 +81,7 @@ fn run_prompt() -> Result<(), String> {
             Err(_) => return Err("ERROR: could not read line".to_string()),
         }
 
-        match run(&buffer) {
+        match run(&mut interpreter, &buffer) {
             Ok(_) => (),
             Err(msg) => println!("{}", msg),
         }

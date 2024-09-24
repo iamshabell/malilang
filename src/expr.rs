@@ -1,6 +1,9 @@
 use core::panic;
 
-use crate::lexer::{LiteralValue, Token, TokenType};
+use crate::{
+    environment::Environment,
+    lexer::{LiteralValue, Token, TokenType},
+};
 use anyhow::Result;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
@@ -125,14 +128,30 @@ impl Expr {
         }
     }
 
-    pub fn evaluate(&self) -> Result<ExpLiteralValue> {
+    pub fn evaluate(&self, env: &mut Environment) -> Result<ExpLiteralValue> {
         match self {
+            Expr::Variable { name } => match name.lexeme.as_str() {
+                "True" => Ok(ExpLiteralValue::True),
+                "False" => Ok(ExpLiteralValue::False),
+                "Nil" => Ok(ExpLiteralValue::Nil),
+                _ => {
+                    let result = env
+                        .get(&name.lexeme)
+                        .map(|v| v.clone())
+                        .ok_or_else(|| anyhow::anyhow!("Undefined variable {:?}", name.lexeme));
+
+                    result
+                }
+            },
+            Expr::Assignment { name, value } => {
+                let value = value.evaluate(env)?;
+                env.assign(name.lexeme.as_str(), value.clone());
+                Ok(value)
+            }
             Expr::Literal { value } => Ok(value.clone()),
-
-            Expr::Grouping { expression } => expression.evaluate(),
-
+            Expr::Grouping { expression } => expression.evaluate(env),
             Expr::Unary { operator, right } => {
-                let right_value = right.evaluate()?;
+                let right_value = right.evaluate(env)?;
                 match (&right_value, operator.token_type) {
                     (ExpLiteralValue::Number(x), TokenType::Minus) => {
                         Ok(ExpLiteralValue::Number(-x))
@@ -157,8 +176,8 @@ impl Expr {
                 operator,
                 right,
             } => {
-                let left_value = left.evaluate()?;
-                let right_value = right.evaluate()?;
+                let left_value = left.evaluate(env)?;
+                let right_value = right.evaluate(env)?;
 
                 match operator.token_type {
                     TokenType::Plus => match (left_value, right_value) {
@@ -227,12 +246,7 @@ impl Expr {
                     ),
                 }
             }
-            Expr::Variable { name } => match name.lexeme.as_str() {
-                "True" => Ok(ExpLiteralValue::True),
-                "False" => Ok(ExpLiteralValue::False),
-                "Nil" => Ok(ExpLiteralValue::Nil),
-                _ => anyhow::bail!("Cannot evaluate variable {:?}", name.lexeme),
-            },
+
             _ => todo!("Implement evaluation for {:?}", self.to_string()),
         }
     }
@@ -259,7 +273,10 @@ mod tests {
                 value: ExpLiteralValue::Number(2.0),
             }),
         };
-        let result = expr.evaluate().unwrap();
+
+        let mut env = Environment::new();
+        let result = expr.evaluate(&mut env).unwrap();
+
         assert_eq!(result, ExpLiteralValue::Number(3.0));
     }
 
@@ -276,7 +293,10 @@ mod tests {
                 value: ExpLiteralValue::Number(1.0),
             }),
         };
-        let result = expr.evaluate().unwrap();
+
+        let mut env = Environment::new();
+        let result = expr.evaluate(&mut env).unwrap();
+
         assert_eq!(result, ExpLiteralValue::Number(-1.0));
     }
 
@@ -296,7 +316,10 @@ mod tests {
                 value: ExpLiteralValue::Number(2.0),
             }),
         };
-        let result = expr.evaluate().unwrap();
+
+        let mut env = Environment::new();
+        let result = expr.evaluate(&mut env).unwrap();
+
         assert_eq!(result, ExpLiteralValue::False);
     }
 
@@ -331,7 +354,12 @@ mod tests {
             }),
         };
 
-        let result = expr.evaluate().unwrap();
+        let mut env = Environment::new();
+        let result = expr.evaluate(&mut env).unwrap();
+
         assert_eq!(result, ExpLiteralValue::Number(7.0));
     }
+
+    #[test]
+    fn test_assignment() {}
 }

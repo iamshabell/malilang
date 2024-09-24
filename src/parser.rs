@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::{
     expr::{ExpLiteralValue, Expr},
     lexer::{Token, TokenType},
+    statement::Stmt,
 };
 
 #[derive(Debug, PartialEq, PartialOrd)]
@@ -27,8 +28,70 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Expr> {
-        self.parse_expression(Precedence::None)
+    pub fn parse(&mut self) -> Result<Vec<Stmt>> {
+        let mut statements = Vec::new();
+
+        while !self.is_at_end() {
+            statements.push(self.parse_statement()?);
+        }
+
+        Ok(statements)
+    }
+
+    fn parse_statement(&mut self) -> Result<Stmt> {
+        let peeked = self.peek().token_type;
+        match peeked {
+            TokenType::Var => self.parse_variable_declaration(),
+            TokenType::Print => self.parse_print_statement(),
+            _ => anyhow::bail!("Expected a statement"),
+        }
+    }
+
+    fn parse_variable_declaration(&mut self) -> Result<Stmt> {
+        match self.consume(TokenType::Var, "Expected 'weel' keyword") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+        let name = match self.consume(TokenType::Identifier, "Expected variable name") {
+            Ok(token) => token,
+            Err(e) => anyhow::bail!(e),
+        };
+
+        let initializer = if self.match_token(TokenType::Equal) {
+            Some(self.parse_expression(Precedence::None)?)
+        } else {
+            None
+        };
+
+        match self.consume(
+            TokenType::Semicolon,
+            "Expected ';' after variable declaration",
+        ) {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Stmt::Var {
+            name,
+            initializer: match initializer {
+                Some(expr) => Some(expr),
+                None => None,
+            },
+        })
+    }
+
+    fn parse_print_statement(&mut self) -> Result<Stmt> {
+        match self.consume(TokenType::Print, "Expected 'print' keyword") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+        let expression = self.parse_expression(Precedence::None)?;
+        match self.consume(TokenType::Semicolon, "Expected ';' after print statement") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Stmt::Print { expression })
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expr> {
@@ -62,8 +125,11 @@ impl Parser {
                 })
             }
             TokenType::LeftParen => {
-                let mut expr = self.parse_expression(Precedence::None)?;
-                self.consume(TokenType::RightParen, "Exprected ')' after expression");
+                let expr = self.parse_expression(Precedence::None)?;
+                match self.consume(TokenType::RightParen, "Exprected ')' after expression") {
+                    Ok(_) => (),
+                    Err(e) => anyhow::bail!(e),
+                }
                 Ok(Expr::Grouping {
                     expression: Box::new(expr),
                 })
@@ -76,11 +142,23 @@ impl Parser {
         let precedence = self.get_precedence();
         let right = self.parse_expression(precedence)?;
 
-        Ok(Expr::Binary {
-            left: Box::new(left),
-            operator: token,
-            right: Box::new(right),
-        })
+        match token.token_type {
+            TokenType::Plus
+            | TokenType::Minus
+            | TokenType::Star
+            | TokenType::Slash
+            | TokenType::EqualEqual
+            | TokenType::BangEqual
+            | TokenType::Less
+            | TokenType::LessEqual
+            | TokenType::Greater
+            | TokenType::GreaterEqual => Ok(Expr::Binary {
+                left: Box::new(left),
+                operator: token,
+                right: Box::new(right),
+            }),
+            _ => anyhow::bail!("Unexpected token: {:?}", token),
+        }
     }
 
     fn get_precedence(&self) -> Precedence {
@@ -161,7 +239,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.lex().unwrap();
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse().unwrap().to_string();
+        let expr = parser
+            .parse_expression(Precedence::None)
+            .unwrap()
+            .to_string();
 
         assert_eq!(expr, "(+ 1 (* 2 3))");
     }
@@ -172,7 +253,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.lex().unwrap();
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse().unwrap().to_string();
+        let expr = parser
+            .parse_expression(Precedence::None)
+            .unwrap()
+            .to_string();
 
         assert_eq!(expr, "(* (+ 1 2) 3)");
     }
@@ -183,7 +267,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.lex().unwrap();
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse().unwrap().to_string();
+        let expr = parser
+            .parse_expression(Precedence::None)
+            .unwrap()
+            .to_string();
 
         assert_eq!(expr, "(+ (- 1) 2)");
     }
@@ -194,7 +281,10 @@ mod tests {
         let mut lexer = Lexer::new(input);
         let tokens = lexer.lex().unwrap();
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse().unwrap().to_string();
+        let expr = parser
+            .parse_expression(Precedence::None)
+            .unwrap()
+            .to_string();
 
         assert_eq!(expr, "(* (+ (- 1) 2) 3)");
     }
