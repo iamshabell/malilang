@@ -26,5 +26,4 @@ haddii wey_kujirtaa {
 - [ ] Functions
 
 ### Current Development
-
-
+![MaliLang_Demo REPL](https://github.com/user-attachments/assets/275784b9-0ba1-43f4-a4ef-6d281b548102)
