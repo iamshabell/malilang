@@ -16,3 +16,11 @@ haddii wey_kujirtaa {
     daabac "Tiradu ma aha sax";
 }
 ```
+
+## Roadmap
+- [x] Lexer
+- [x] Parsing Arithmetic Expressions
+- [x] Statements and Environment
+- [x] Variables
+- [ ] If / While Conditions
+- [ ] Functions
