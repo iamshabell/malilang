@@ -24,3 +24,7 @@ haddii wey_kujirtaa {
 - [x] Variables
 - [ ] If / While Conditions
 - [ ] Functions
+
+### Current Development
+
+
