@@ -3,6 +3,7 @@ use core::panic;
 use crate::{
     environment::Environment,
     lexer::{LiteralValue, Token, TokenType},
+    statement::Function,
 };
 use anyhow::Result;
 
@@ -13,6 +14,7 @@ pub enum ExpLiteralValue {
     True,
     False,
     Nil,
+    FunctionValue(Function),
 }
 
 use ExpLiteralValue::*;
@@ -20,6 +22,7 @@ use ExpLiteralValue::*;
 impl ExpLiteralValue {
     pub fn to_string(&self) -> String {
         match self {
+            ExpLiteralValue::FunctionValue(f) => todo!(),
             ExpLiteralValue::Number(n) => n.to_string(),
             ExpLiteralValue::StringValue(s) => s.clone(),
             ExpLiteralValue::True => "true".to_string(),
@@ -57,6 +60,7 @@ impl ExpLiteralValue {
 
     pub fn is_falsy(&self) -> ExpLiteralValue {
         match self {
+            FunctionValue(_) => False,
             Number(x) => {
                 if *x == 0.0 {
                     True
@@ -78,6 +82,7 @@ impl ExpLiteralValue {
     }
 }
 
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Expr {
     Literal {
         value: ExpLiteralValue,
@@ -101,11 +106,28 @@ pub enum Expr {
         name: Token,
         value: Box<Expr>,
     },
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
+    },
 }
 
 impl Expr {
     pub fn to_string(&self) -> String {
         match self {
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let arguments_str = arguments
+                    .iter()
+                    .map(|arg| arg.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                format!("({}({}))", callee.to_string(), arguments_str)
+            }
             Expr::Assignment { name, value } => format!("({:?} = {:?})", name, value.to_string()),
             Expr::Variable { name } => format!("(var {})", name.lexeme),
             Expr::Binary {
@@ -130,6 +152,22 @@ impl Expr {
 
     pub fn evaluate(&self, env: &mut Environment) -> Result<ExpLiteralValue> {
         match self {
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = callee.evaluate(env)?;
+                let arguments = arguments
+                    .iter()
+                    .map(|arg| arg.evaluate(env))
+                    .collect::<Result<Vec<ExpLiteralValue>>>()?;
+
+                match callee {
+                    FunctionValue(f) => f.call(arguments),
+                    _ => anyhow::bail!("Cannot call {:?}", callee),
+                }
+            }
             Expr::Variable { name } => match name.lexeme.as_str() {
                 "True" => Ok(ExpLiteralValue::True),
                 "False" => Ok(ExpLiteralValue::False),

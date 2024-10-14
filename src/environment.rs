@@ -2,10 +2,23 @@ use std::collections::HashMap;
 
 use crate::expr::ExpLiteralValue;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     values: HashMap<String, ExpLiteralValue>,
     enclosing: Option<Box<Environment>>,
+}
+
+impl PartialOrd for Environment {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.values.iter().partial_cmp(&other.values) {
+            Some(std::cmp::Ordering::Equal) => match self.enclosing.partial_cmp(&other.enclosing) {
+                Some(ordering) => Some(ordering),
+                None => None,
+            },
+            Some(ordering) => Some(ordering),
+            None => None,
+        }
+    }
 }
 
 impl Environment {
