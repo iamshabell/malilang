@@ -5,15 +5,17 @@
 ### Example Program
 ```javascript
 hawl soo_dhoweey(magac) {
-    daabac "Soo dhowey " + magac;
+    daabac(“Soo dhowoow " + magac);
 }
 
-weel wey_kujirtaa = haa;
+weel magac = “Ahmed”;
+soo_dhoweey(magac);
 
+weel wey_kujirtaa = haa;
 haddii wey_kujirtaa {
-    daabac "Tiradu waa sax";
+    daabac("Tiradu waa sax”);
 } kale {
-    daabac "Tiradu ma aha sax";
+    daabac(“Tiradu ma aha sax”);
 }
 ```
 
