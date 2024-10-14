@@ -40,11 +40,106 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Stmt> {
         let peeked = self.peek().token_type;
+        println!("Peeked: {:?}", peeked);
+
+        let peeked_next = self.peek_next().token_type;
+        if peeked_next == TokenType::LeftParen {
+            self.advance();
+            return self.parse_expression_statement();
+        }
+
         match peeked {
             TokenType::Var => self.parse_variable_declaration(),
             TokenType::Print => self.parse_print_statement(),
-            _ => anyhow::bail!("Expected a statement"),
+            TokenType::Fun => self.parse_function_declaration(),
+            TokenType::LeftBrace => self.parse_block_statement(),
+            _ => self.parse_expression_statement(),
         }
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<Stmt> {
+        let expression = self.parse_expression(Precedence::None)?;
+        println!("Expression: {:?}", expression);
+
+        match self.consume(TokenType::Semicolon, "Expected ';' after expression") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Stmt::Expression { expression })
+    }
+
+    fn parse_block_statement(&mut self) -> Result<Stmt> {
+        println!("Parsing block statement");
+        match self.consume(TokenType::LeftBrace, "Expected '{' to start block") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        let mut statements = Vec::new();
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            statements.push(self.parse_statement()?);
+        }
+
+        match self.consume(TokenType::RightBrace, "Expected '}' to end block") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Stmt::Block { statements })
+    }
+
+    fn parse_function_declaration(&mut self) -> Result<Stmt> {
+        match self.consume(TokenType::Fun, "Expected 'hawl' keyword") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        let name = match self.consume(TokenType::Identifier, "Expected function name") {
+            Ok(token) => token,
+            Err(e) => anyhow::bail!(e),
+        };
+
+        match self.consume(TokenType::LeftParen, "Expected '(' after function name") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        let mut params = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                match self.consume(TokenType::Identifier, "Expected parameter name") {
+                    Ok(token) => params.push(token),
+                    Err(e) => anyhow::bail!(e),
+                }
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        match self.consume(TokenType::RightParen, "Expected ')' after parameters") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        match self.consume(TokenType::LeftBrace, "Expected '{' before function body") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        let mut body = Vec::new();
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            body.push(self.parse_statement()?);
+        }
+
+        match self.consume(TokenType::RightBrace, "Expected '}' after function body") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Stmt::Fun { name, params, body })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Stmt> {
@@ -86,6 +181,7 @@ impl Parser {
             Err(e) => anyhow::bail!(e),
         }
         let expression = self.parse_expression(Precedence::None)?;
+
         match self.consume(TokenType::Semicolon, "Expected ';' after print statement") {
             Ok(_) => (),
             Err(e) => anyhow::bail!(e),
@@ -99,6 +195,12 @@ impl Parser {
 
         if precedence < self.get_precedence() {
             let token = self.advance();
+            println!("Token: {:?}", token.token_type);
+
+            if token.token_type == TokenType::LeftParen {
+                println!("Call expression");
+                return self.finish_call(left);
+            }
             left = self.parse_infix(left, token)?;
         }
 
@@ -141,8 +243,8 @@ impl Parser {
     fn parse_infix(&mut self, left: Expr, token: Token) -> Result<Expr> {
         let precedence = self.get_precedence();
         let right = self.parse_expression(precedence)?;
-
         match token.token_type {
+            TokenType::LeftParen => self.finish_call(left),
             TokenType::Plus
             | TokenType::Minus
             | TokenType::Star
@@ -159,6 +261,31 @@ impl Parser {
             }),
             _ => anyhow::bail!("Unexpected token: {:?}", token),
         }
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr> {
+        let mut arguments = Vec::new();
+
+        if !self.check(TokenType::RightParen) {
+            loop {
+                arguments.push(self.parse_expression(Precedence::None)?);
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        match self.consume(TokenType::RightParen, "Expected ')' after arguments") {
+            Ok(_) => (),
+            Err(e) => anyhow::bail!(e),
+        }
+
+        Ok(Expr::Call {
+            callee: Box::new(callee),
+            paren: self.previous(),
+            arguments,
+        })
     }
 
     fn get_precedence(&self) -> Precedence {
@@ -221,6 +348,10 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         &self.tokens[self.current]
+    }
+
+    fn peek_next(&self) -> &Token {
+        &self.tokens[self.current + 1]
     }
 
     fn previous(&self) -> Token {

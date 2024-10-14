@@ -230,7 +230,7 @@ impl Lexer {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum LiteralValue {
     IntValue(i64),
     FloatValue(f32),
@@ -238,7 +238,7 @@ pub enum LiteralValue {
     Identifier(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -272,7 +272,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum TokenType {
     LeftParen,
     RightParen,
